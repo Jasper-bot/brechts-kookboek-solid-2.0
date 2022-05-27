@@ -8,7 +8,6 @@ import {
 
 import styles from './Login.module.css';
 import RegisterHeader from '../components/RegisterHeader';
-
 import { LoginButton } from "@inrupt/solid-ui-react";
 
 const Login: React.FC = ({  }) => {

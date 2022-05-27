@@ -1,11 +1,11 @@
 //<editor-fold desc="imports">
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {Redirect, Route} from 'react-router-dom';
 /* Import Components */
 import {
   IonIcon,
-  IonLabel, IonRouterOutlet,
+  IonLabel, IonLoading, IonRouterOutlet,
   IonTabBar,
   IonTabButton,
   IonTabs,
@@ -25,14 +25,29 @@ import NotFoundPage from "./pages/NotFoundPage";
 import SearchRecipes from "./pages/SearchRecipes";
 import EditRecipe from "./pages/EditRecipe";
 import Chat from "./pages/Chat";
+import { useSession } from "@inrupt/solid-ui-react";
+
 
 //</editor-fold>
 
 const AppTabs: React.FC = () => {
-  const { loggedIn } = useAuth();
+  const { session, sessionRequestInProgress } = useSession();
+  const [ authState, setauthState] = useState({"loading" : true, "loggedIn": false});
+
+  useEffect(() => {
+    setauthState({
+      "loading": sessionRequestInProgress,
+      "loggedIn" : session.info.isLoggedIn
+    });
+  }, [sessionRequestInProgress]);
+
+  if(!authState.loading && !authState.loggedIn) {
+    return <Redirect to="/login"/>;
+  }
 
   return (
           <IonTabs>
+            <IonLoading isOpen={authState.loading}/>
             <IonRouterOutlet>
               <Route exact path="/my/home">
                 <Home />

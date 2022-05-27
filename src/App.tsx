@@ -16,21 +16,15 @@ import NotFoundPage from "./pages/NotFoundPage";
 import {AuthContext, useAuthInit} from "./auth";
 import Test from "./pages/test";
 
-import { SessionProvider } from "@inrupt/solid-ui-react";
+import { SessionProvider, useSession } from "@inrupt/solid-ui-react";
 
 //</editor-fold>
 
 const App: React.FC = () => {
-    const {loading, auth} = useAuthInit();
-    console.log('authstate: ',auth);
-
-    if(loading) {
-        return <IonLoading isOpen />
-    }
     return (
         <IonApp>
             <SessionProvider>
-                <AuthContext.Provider value={auth}>
+                {/* <AuthContext.Provider value={auth}> */}
                     {/* routes */}
                     <IonReactRouter>
                         <Switch>
@@ -54,7 +48,7 @@ const App: React.FC = () => {
                             </Route>
                         </Switch>
                     </IonReactRouter>
-                </AuthContext.Provider>
+                {/* </AuthContext.Provider> */}
             </SessionProvider>
         </IonApp>
     );

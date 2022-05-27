@@ -18,6 +18,7 @@ import {useAuth} from "../auth";
 import {useHistory} from "react-router";
 import styles from "./AddRecipe.module.css";
 import {removeWhitespaceFromArray } from "../helperfunctions";
+import { useSession } from "@inrupt/solid-ui-react";
 
 async function savePhoto(blobUrl, idNewRecipe) {
     const photoRef = storage.ref(`/images/${idNewRecipe}/${idNewRecipe}`);
@@ -72,6 +73,7 @@ const AddRecipe: React.FC = () => {
     const history = useHistory();
     const fileInputRef = useRef<HTMLInputElement>();
     const [loading, setLoading] = useState(false);
+    const { session } = useSession();
 
     useEffect(() => () => {
         if(photo.startsWith('blob:')){
@@ -85,8 +87,8 @@ const AddRecipe: React.FC = () => {
         const recipeData = {
             title: data.title,
             description: data.description,
-            userId: userId,
-            userName: userName,
+            userId: session.info.webId,
+            // userName: userName,
             photo: photo,
             steps: removeWhitespaceFromArray(data.steps),
             ingredients: removeWhitespaceFromArray(data.ingredients),

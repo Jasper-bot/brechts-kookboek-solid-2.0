@@ -30,9 +30,6 @@ import Chat from "./pages/Chat";
 
 const AppTabs: React.FC = () => {
   const { loggedIn } = useAuth();
-  if (!loggedIn) {
-    return <Redirect to="/login" />;
-  }
 
   return (
           <IonTabs>

@@ -16,6 +16,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import {AuthContext, useAuthInit} from "./auth";
 import Test from "./pages/test";
 
+import { SessionProvider } from "@inrupt/solid-ui-react";
+
 //</editor-fold>
 
 const App: React.FC = () => {
@@ -27,31 +29,33 @@ const App: React.FC = () => {
     }
     return (
         <IonApp>
-            <AuthContext.Provider value={auth}>
-                {/* routes */}
-                <IonReactRouter>
-                    <Switch>
-                        <Route path="/register">
-                            <Register/>
-                        </Route>
-                        <Route path="/login">
-                            <Login />
-                        </Route>
-                        <Route path="/my">
-                            <AppTabs/>
-                        </Route>
-                        <Route exact path="/">
-                            <Redirect to="/login"/>
-                        </Route>
-                        <Route exact path={"/test"}>
-                            <Test />
-                        </Route>
-                        <Route>
-                            <NotFoundPage/>
-                        </Route>
-                    </Switch>
-                </IonReactRouter>
-            </AuthContext.Provider>
+            <SessionProvider>
+                <AuthContext.Provider value={auth}>
+                    {/* routes */}
+                    <IonReactRouter>
+                        <Switch>
+                            <Route path="/register">
+                                <Register/>
+                            </Route>
+                            <Route path="/login">
+                                <Login />
+                            </Route>
+                            <Route path="/my">
+                                <AppTabs/>
+                            </Route>
+                            <Route exact path="/">
+                                <Redirect to="/login"/>
+                            </Route>
+                            <Route exact path={"/test"}>
+                                <Test />
+                            </Route>
+                            <Route>
+                                <NotFoundPage/>
+                            </Route>
+                        </Switch>
+                    </IonReactRouter>
+                </AuthContext.Provider>
+            </SessionProvider>
         </IonApp>
     );
 };

@@ -74,7 +74,7 @@ const RecipePage: React.FC = () => {
         const userRef = db.collection('users').doc(userId);
         recipeRef.get().then ((doc) => setRecipe(toRecipe(doc)));
         userRef.onSnapshot((doc) => {
-            doc.data().favoriteRecipes.includes(id) ? setFavorite(true) : setFavorite(false);
+            doc?.data()?.favoriteRecipes?.includes(id) ? setFavorite(true) : setFavorite(false);
         });
     }, [id]);
 
@@ -292,7 +292,7 @@ const RecipePage: React.FC = () => {
                     <IonListHeader>
                         Ingrediënten
                     </IonListHeader>
-                    {recipe?.ingredients.map((entry, i) =>
+                    {recipe?.ingredients?.map((entry, i) =>
                         <IonItem key={i}>
                             <IonLabel>
                                 <p>

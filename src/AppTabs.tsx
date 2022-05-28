@@ -26,6 +26,7 @@ import SearchRecipes from "./pages/SearchRecipes";
 import EditRecipe from "./pages/EditRecipe";
 import Chat from "./pages/Chat";
 import { useSession } from "@inrupt/solid-ui-react";
+import Test from "./pages/test";
 
 
 //</editor-fold>
@@ -51,6 +52,9 @@ const AppTabs: React.FC = () => {
             <IonRouterOutlet>
               <Route exact path="/my/home">
                 <Home />
+              </Route>
+              <Route exact path="/my/test">
+                <Test />
               </Route>
               <Route exact path="/my/favorite-recipes">
                 <Favorites />

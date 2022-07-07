@@ -1,8 +1,15 @@
 import { useSession } from '@inrupt/solid-ui-react';
 import { IonLabel, IonText, IonTextarea, IonButton } from '@ionic/react';
-import React, { FC, useRef, useState } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import styles from './AddComment.module.css';
 import {db, storage} from '../../firebase/firebase.utils';
+import {
+    createSolidDataset,
+    getSolidDataset,
+    saveSolidDatasetAt, 
+    getThing, 
+    getUrlAll
+  } from "@inrupt/solid-client";
 
 interface CommentProps {
     recipeId: string
@@ -16,7 +23,29 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     const { session } = useSession();
 
     console.log("session state: " + JSON.stringify(session.info));
-    
+
+    const [todoList, setTodoList] = useState();
+
+    useEffect(() => {
+      if (!session) return;
+
+      (async () => {
+        const profileDataset = await getSolidDataset(session.info.webId, {
+          fetch: session.fetch,
+        });
+        const profileThing = getThing(profileDataset, session.info.webId);
+        const podsUrls = getUrlAll(
+          profileThing,
+          "http://www.w3.org/ns/pim/space#storage"
+        );
+        const pod = podsUrls[0];
+        const containerUri = `${pod}comments/`;
+        const list = await getOrCreateCommentDataset(containerUri, session.fetch);
+        console.log(JSON.stringify(list));
+        
+        // setTodoList(list);
+      })();
+    }, [session]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         // if(event.target.files.length > 0) {
@@ -71,6 +100,25 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         // } else {
         //     fileInputRef.current.click();
         // }
+    }
+
+    async function getOrCreateCommentDataset(containerUri, fetch){
+        const indexUrl = `${containerUri}index.ttl`;
+        try {
+            const todoList = await getSolidDataset(indexUrl, { fetch });
+            return todoList;
+          } catch (error) {
+            if (error.statusCode === 404) {
+              const todoList = await saveSolidDatasetAt(
+                indexUrl,
+                createSolidDataset(),
+                {
+                  fetch,
+                }
+              );
+              return todoList;
+            }
+          }
     }
     
     return (

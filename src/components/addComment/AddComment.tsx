@@ -1,5 +1,5 @@
 import { useSession } from '@inrupt/solid-ui-react';
-import { IonLabel, IonText, IonTextarea, IonButton } from '@ionic/react';
+import { IonLabel, IonText, IonTextarea, IonButton, useIonAlert } from '@ionic/react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import styles from './AddComment.module.css';
 import {db, storage} from '../../firebase/firebase.utils';
@@ -16,15 +16,13 @@ interface CommentProps {
 }
 
 const AddComment: React.FC<CommentProps> = ({recipeId}) => {
-    const [photo, setPhoto] = useState('/assets/images/addImage.png');
+    const [presentAskPermission] = useIonAlert();
     const [uploadMessage, setUploadMessage] = useState('');
     const [comment, setComment] = useState('');
     const fileInputRef = useRef<HTMLInputElement>();
     const { session } = useSession();
 
     console.log("session state: " + JSON.stringify(session.info));
-
-    const [todoList, setTodoList] = useState();
 
     useEffect(() => {
       if (!session) return;
@@ -46,14 +44,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         // setTodoList(list);
       })();
     }, [session]);
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // if(event.target.files.length > 0) {
-        //     const file = event.target.files.item(0);
-        //     const photoUrl = URL.createObjectURL(file);
-        //     setPhoto(photoUrl);
-        // }
-    }
 
     const handleCommentUpload = async () => {
         const webId = session.info.webId;
@@ -87,21 +77,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         // }
     }
 
-    const handlePictureClick = async () => {
-        // if(!isPlatform('desktop') ){
-        //     try {
-        //         const photo = await Camera.getPhoto({
-        //             resultType: CameraResultType.Uri,
-        //         });
-        //         setPhoto(photo.webPath);
-        //     } catch (error) {
-        //         console.log(error);
-        //     }
-        // } else {
-        //     fileInputRef.current.click();
-        // }
-    }
-
     async function getOrCreateCommentDataset(containerUri, fetch){
         const indexUrl = `${containerUri}index.ttl`;
         try {
@@ -120,20 +95,34 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
             }
           }
     }
+
+    async function addCommentToPod() {}
+
+    async function addHashedCommentToFirebase() {}
     
     return (
         <form className={"ion-margin"}>
-        <IonLabel position={"stacked"}>Upload een nieuwe foto:</IonLabel>
+        {/* <IonLabel position={"stacked"}>Upload een nieuwe comment:</IonLabel> */}
         <IonText color="warning">
             <p>{uploadMessage}</p>
         </IonText>
-        <input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} hidden className={styles.img}/>
-        <img src={photo} alt=""
-             onClick={handlePictureClick}
-        />
-        <IonTextarea placeholder={"Laat hier een boodschap achter voor bij je foto te zetten"} value={comment}
+        <IonTextarea placeholder={"Type hier uw nieuwe comment"} value={comment}
                      onIonChange={(event) => setComment(event.detail.value)} />
-        <IonButton onClick={handleCommentUpload}>Upload foto + boodschap</IonButton>
+        <IonButton onClick={() => presentAskPermission({
+        header: 'Geeft u toestemming aan Brechts Kookboek om uw comment publiek zichtbaar te maken voor iedereen?',
+        buttons: [
+          {
+            text: 'Nee',
+            role: 'cancel',
+            handler: () => { setUploadMessage('U hebt geweigerd'); }
+          },
+          {
+            text: 'Ja',
+            role: 'confirm',
+            handler: () => { handleCommentUpload(); }
+          }
+        ]
+      })}>Upload comment</IonButton>
     </form>
     );
 };

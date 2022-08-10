@@ -4,7 +4,9 @@ export interface Comment {
     comment?: string,
     name?: string,
     downloadURL?: string,
-    storageId?: string
+    storageId?: string,
+    Url?: string,
+    hashedComment?: string,
 }
 
 export function toComment(doc): Comment {

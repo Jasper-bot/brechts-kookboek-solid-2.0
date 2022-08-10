@@ -1,5 +1,5 @@
 import { useSession } from '@inrupt/solid-ui-react';
-import { IonLabel, IonText, IonTextarea, IonButton, useIonAlert } from '@ionic/react';
+import { IonLabel, IonText, IonTextarea, IonButton, useIonAlert, IonLoading } from '@ionic/react';
 import React, { FC, useEffect, useRef, useState } from 'react';
 import styles from './AddComment.module.css';
 import {db, storage} from '../../firebase/firebase.utils';
@@ -16,7 +16,7 @@ import {
   } from "@inrupt/solid-client";
 
 import { schema } from 'rdf-namespaces';
-import { getOrCreateCommentDataset } from "../../utils/utils";
+var crypto = require('crypto');
 
 interface CommentProps {
     recipeId: string
@@ -26,17 +26,16 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     const [presentAskPermission] = useIonAlert();
     const [uploadMessage, setUploadMessage] = useState('');
     const [comment, setComment] = useState('');
-    //const [profileThing, setProfileThing] = useState('');
-    //const fileInputRef = useRef<HTMLInputElement>();
     const [commentDataset, setCommentDataset] = useState(null);
     const [profileThing, setProfileThing] = useState(null);
     const { session } = useSession();
+    const [loading, setLoading] = useState(false);
 
     const rdfText = schema.Text;
     const rdfCreator = schema.creator;
     const rdfDateCreated = schema.dateCreated;
 
-    console.log("session state: " + JSON.stringify(session.info));
+    //console.log("session state: " + JSON.stringify(session.info));
 
     useEffect(() => {
       if (!session) return;
@@ -55,15 +54,12 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         const pod = podsUrls[0];
         const containerUri = `${pod}comments/`;
 
-        console.log("podsurls: " + podsUrls);
-        console.log("pod: " + pod);
-        console.log("container uri: " +  containerUri);
+        // console.log("podsurls: " + podsUrls);
+        // console.log("pod: " + pod);
+        // console.log("container uri: " +  containerUri);
 
-        // axios.head(containerUri).then(response => console.info("headers:", response.headers));
-        
         const commentDataset = await getOrCreateCommentDataset(containerUri, session.fetch);
         setCommentDataset(commentDataset);
-        // console.log(JSON.stringify(commentDataset));
       })();
     }, [session]);
 
@@ -111,8 +107,25 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
       );
     }
 
+    function hashComment(comment) {
+      return crypto.createHash('md5').update(comment).digest('hex');
+    }
+
+    async function addUrlAndHashedCommentToFirebase(url, hashedComment) {
+      const commentRef = db.collection('recipes').doc(recipeId).collection('comments');
+      await commentRef.add({
+        Url: url,
+        hashedComment: hashedComment
+      });
+    }
+
     const handleCommentUpload = async () => {
-      if(!checkCommentText()) return;
+      setLoading(true);
+      if(!checkCommentText()) {
+        setLoading(false);
+
+        return;
+      }
 
       const newCommentThing = createNewCommentThing();
 
@@ -120,40 +133,19 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
 
       saveToPod(updatedCommentDataset);
 
-      // hashen
-      // toevoegen aan firebase
+      const hashedComment = hashComment(comment);
 
-      setUploadMessage("Uw comment is succesvol geupload!");
-
-      // const webId = session.info.webId;
-      // const commentRef = db.collection('recipes').doc(recipeId).collection('webIdsComments');
-      // await commentRef.add({webId: webId});
-
-        // setLoading(true);
-        // setComments([]);
-        // if(photo == previousPhoto){
-        //     setUploadMessage('Je hebt geen foto geselecteerd of je hebt deze foto al geüploadt.');
-        //     setLoading(false);
-        // } else if( comment.length > 0 && comment.length < 5){
-        //     setUploadMessage('Gebruik minstens 5 karakters bij een reactie of laat deze leeg!');
-        //     setLoading(false);
-        // } else if(comment.length > 200){
-        //     setUploadMessage('Gebruik maximum 200 karakters bij een reactie');
-        //     setLoading(false);
-        // } else {
-        //     try {
-        //         await savePhoto(photo, id, userName, comment, userId);
-        //         await updateUserBadge(recipe.category);
-        //         setPhoto('/assets/images/addImage.png');
-        //         setComment('');
-        //         setUploadMessage('Upload geslaagd!');
-        //     } catch (e) {
-        //         setUploadMessage(e.message);
-        //     } finally {
-        //         setPreviousPhoto(photo);
-        //         setLoading(false);
-        //     }
-        // }
+      try {
+        const latestComment = updatedCommentDataset.graphs.default[Object.keys(updatedCommentDataset.graphs.default).at(-1)];
+        await addUrlAndHashedCommentToFirebase(latestComment.url ,hashedComment);
+        setUploadMessage("Uw comment is succesvol geupload!");
+      } catch (e) {
+        setUploadMessage(e.message);
+      } finally {
+        setLoading(false);
+        setComment("");
+      }
+      
     }
 
     function checkCommentText() {
@@ -172,6 +164,7 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     
     return (
         <form className={"ion-margin"}>
+          <IonLoading isOpen={loading}/>
           <IonText color="warning">
               <p>{uploadMessage}</p>
           </IonText>

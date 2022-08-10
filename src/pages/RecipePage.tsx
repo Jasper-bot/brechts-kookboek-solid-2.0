@@ -1,10 +1,5 @@
 import {
     IonButton,
-    IonCard,
-    IonCardContent,
-    IonCardHeader,
-    IonCardSubtitle,
-    IonCardTitle,
     IonCol,
     IonContent,
     IonFab,
@@ -21,7 +16,6 @@ import {
     IonPage,
     IonRow,
     IonText,
-    IonTextarea, isPlatform,
     useIonAlert,
 } from '@ionic/react';
 import {db, storage} from '../firebase/firebase.utils';
@@ -34,135 +28,98 @@ import Header from "../components/Header";
 import styles from "./RecipePage.module.css";
 import {useAuth} from "../auth";
 import {Comment, toComment} from "../models/comment";
-import {Camera, CameraResultType} from "@capacitor/camera";
+import AddComment from '../components/addComment/AddComment';
+import { useSession } from '@inrupt/solid-ui-react';
+import { getSolidDataset, getStringNoLocale, getThing } from '@inrupt/solid-client';
+import { schema } from 'rdf-namespaces';
+var crypto = require('crypto');
+
 
 interface RouteParams {
     id: string;
-}
-
-async function savePhoto(blobUrl, recipeId, uploaderName, comment, userId) {
-    const uid = uploaderName + "." + Date.now().toString(36) + Math.random().toString(36).substr(2);
-    const photoRef = storage.ref(`/images/${recipeId}/${uid}`);
-    const response = await fetch(blobUrl);
-    const blob = await response.blob();
-    await photoRef.put(blob).then((async () => {
-         let downloadUrl = await photoRef.getDownloadURL();
-         const data = {comment: comment, downloadURL: downloadUrl, name: uploaderName, uploaderId: userId, storageId: uid };
-         const commentRef = db.collection('recipes').doc(recipeId).collection('comments');
-         await commentRef.add(data);
-    }));
 }
 
 const RecipePage: React.FC = () => {
     const { userName, userId } = useAuth();
     const { id } = useParams<RouteParams>() ;
     const [recipe, setRecipe] = useState<Recipe>();
-    const [photo, setPhoto] = useState('/assets/images/addImage.png');
-    const [previousPhoto, setPreviousPhoto] = useState('/assets/images/addImage.png');
-    const [comments, setComments] = useState<Comment[]>([]);
+    const [commentsFb, setCommentsFb] = useState<Comment[]>([]);
     const [uploadMessage, setUploadMessage] = useState('');
     const [favorite, setFavorite] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [comment, setComment] = useState('');
     const [confirmDelete] = useIonAlert();
+    const { session } = useSession();
+
+    const rdfText = schema.Text;
+    const rdfCreator = schema.creator;
+    const rdfDateCreated = schema.dateCreated;
 
     const history = useHistory();
     const fileInputRef = useRef<HTMLInputElement>();
 
     useEffect(() => {
+        //nodig?
         const recipeRef = db.collection('recipes').doc(id);
         const userRef = db.collection('users').doc(userId);
         recipeRef.get().then ((doc) => setRecipe(toRecipe(doc)));
         userRef.onSnapshot((doc) => {
             doc?.data()?.favoriteRecipes?.includes(id) ? setFavorite(true) : setFavorite(false);
         });
-    }, [id]);
 
-    useEffect(() => () => {
-        if(photo.startsWith('blob:')){
-            URL.revokeObjectURL(photo);
-        }
-    }, [photo]);
-
-    useEffect(() => {
-        setComments([]);
-        const commentsRef = db.collection('recipes').doc(id).collection('comments');
+        // vanaf hieronder wel nodig ja
+        (async () => {
+        setCommentsFb([]);
+        const commentsRef = await db.collection('recipes').doc(id).collection('comments');
         commentsRef.onSnapshot((docs) =>{
             docs.docs.forEach(doc => {
                 if(doc.exists) {
-                    setComments(arr => [...arr, toComment(doc)])
+                    setCommentsFb(arr => [...arr, toComment(doc)])
                 }
             })
-        })
-    },[id, uploadMessage]);
+        });
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if(event.target.files.length > 0) {
-            const file = event.target.files.item(0);
-            const photoUrl = URL.createObjectURL(file);
-            setPhoto(photoUrl);
-        }
-    }
+        await getCommentsFromPods();
+        console.log("comments: "+JSON.stringify(commentsFb));
+        })();
 
-    const handleAddPhoto = async () => {
-        setLoading(true);
-        setComments([]);
-        if(photo == previousPhoto){
-            setUploadMessage('Je hebt geen foto geselecteerd of je hebt deze foto al geüploadt.');
-            setLoading(false);
-        } else if( comment.length > 0 && comment.length < 5){
-            setUploadMessage('Gebruik minstens 5 karakters bij een reactie of laat deze leeg!');
-            setLoading(false);
-        } else if(comment.length > 200){
-            setUploadMessage('Gebruik maximum 200 karakters bij een reactie');
-            setLoading(false);
-        } else {
-            try {
-                await savePhoto(photo, id, userName, comment, userId);
-                await updateUserBadge(recipe.category);
-                setPhoto('/assets/images/addImage.png');
-                setComment('');
-                setUploadMessage('Upload geslaagd!');
-            } catch (e) {
-                setUploadMessage(e.message);
-            } finally {
-                setPreviousPhoto(photo);
-                setLoading(false);
+        
+    }, [id]);
+
+    async function getCommentsFromPods() {
+        commentsFb.forEach(async (comment) => {
+            const commentFromPod = await fetchCommentFromPod(comment["Url"]);
+            console.log("pod comment:"+JSON.stringify(commentFromPod));
+
+            if (compareHashes(comment, commentFromPod)) {
+                // TODO toevoegen aan lokale dataset ofzo? allesinds, display the comment
             }
-        }
-    }
 
-    const handlePictureClick = async () => {
-        if(!isPlatform('desktop') ){
-            try {
-                const photo = await Camera.getPhoto({
-                    resultType: CameraResultType.Uri,
-                });
-                setPhoto(photo.webPath);
-            } catch (error) {
-                console.log(error);
-            }
-        } else {
-            fileInputRef.current.click();
-        }
-    }
-
-    const handleCommentDelete = async (comment) => {
-        setLoading(true);
-        try {
-            // verwijder comment foto
-            await storage.ref(`images/${id}/${comment.storageId}`).delete()
-            //verwijder comment firebase
-            await db.collection('recipes').doc(id).collection('comments').doc(comment.id).delete()
-            setUploadMessage('Comment verwijderd!')
-        } catch (e) {
-            console.log(e);
-            setUploadMessage('error removing comment');
             return;
-        } finally {
-            setLoading(false);
-        }
+        });
     }
+
+    async function fetchCommentFromPod(url) {
+        const commentDataset = await getSolidDataset(
+            url, 
+            { fetch: session.fetch }  
+        );
+
+        const comment = getThing(
+            commentDataset,
+            url
+          );
+
+        return comment;
+    }
+
+    function compareHashes(commentFromFb, commentFromPod) {
+        const commentValue = getStringNoLocale(commentFromPod, rdfText);
+        const commentValueHashed = crypto.createHash('md5').update(commentValue).digest('hex');
+
+        return commentValueHashed === commentFromFb["hashedComment"];
+
+    }
+
 
     const handleDeleteRecipe = async () => {
         setLoading(true);
@@ -195,25 +152,6 @@ const RecipePage: React.FC = () => {
             console.log("Error removing document:", error);
         });
         setLoading(false);
-    }
-
-    const updateUserBadge = async (category) => {
-        readBadges(userId).then((data) => {
-            let newData = data;
-            newData[category][1] += 1;
-            db.collection("users").doc(userId).update({
-                badges: newData
-            });
-        })
-    }
-
-    const readBadges =async (id) => {
-        let response = await db
-            .collection("users")
-            .doc(id)
-            .get();
-        if (response === null || response === undefined) return null;
-        return response.data().badges;
     }
 
     const changeFavorite = async () => {
@@ -317,14 +255,16 @@ const RecipePage: React.FC = () => {
                     )}
                 </IonList>
                 <IonListHeader>
-                    Foto's
+                    Comments
                 </IonListHeader>
-                {comments.length == 0 &&
+                {commentsFb.length == 0 &&
                     <IonText color={"primary"}>
                         <p>Er zijn nog geen foto's toegevoegd aan dit recept door andere gebruikers. Voeg als eerste een foto toe!</p>
                     </IonText>
                 }
-                <IonList>
+
+                <AddComment recipeId={id}></AddComment>
+                {/* <IonList>
                     {comments.map((val, index) =>
                         <IonCard key={index}>
                             <IonImg src={val.downloadURL.valueOf()} alt={val.comment.valueOf()}/>
@@ -353,8 +293,8 @@ const RecipePage: React.FC = () => {
                             </IonCardContent>
                         </IonCard>
                     )}
-                </IonList>
-                <form className={"ion-margin"}>
+                </IonList> */}
+                {/* <form className={"ion-margin"}>
                     <IonLabel position={"stacked"}>Upload een nieuwe foto:</IonLabel>
                     <IonText color="warning">
                         <p>{uploadMessage}</p>
@@ -366,7 +306,7 @@ const RecipePage: React.FC = () => {
                     <IonTextarea placeholder={"Laat hier een boodschap achter voor bij je foto te zetten"} value={comment}
                                  onIonChange={(event) => setComment(event.detail.value)} />
                     <IonButton onClick={handleAddPhoto}>Upload foto + boodschap</IonButton>
-                </form>
+                </form> */}
                 <IonFab vertical='bottom' horizontal='end' slot='fixed'>
                     <IonFabButton routerLink={`/my/recipes/${id}/chat`}>
                         <IonIcon icon={chatbubble} />

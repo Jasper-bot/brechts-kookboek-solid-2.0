@@ -22,8 +22,26 @@ import {Recipe, toRecipe} from "../models/recipe";
 import {MessageModel, toMessage} from "../models/messageModel";
 import Message from '../components/Message'
 import AddComment from '../components/addComment/AddComment';
+import { getSolidDataset, getThing } from '@inrupt/solid-client';
+import { useSession } from '@inrupt/solid-ui-react';
 
 const Test: React.FC = () => {
+    const { session } = useSession();
+
+    useEffect(() => {
+        if (!session) return;
+  
+        (async () => {
+            const commentDataset = await getSolidDataset(
+                "https://jaspercoppens.inrupt.net/comments/index.ttl#16601556483423929874594480707", 
+                { fetch: session.fetch }  
+            );
+            const comment = getThing(
+                commentDataset,
+                `https://jaspercoppens.inrupt.net/comments/index.ttl#16601556483423929874594480707`
+              );
+        })();
+      }, [session]);
 
     return (
         <IonPage>
@@ -31,7 +49,7 @@ const Test: React.FC = () => {
                 <Header />
             </IonHeader>
             <IonContent fullscreen>
-                <AddComment recipeId='0cVaADuNmiMxEuptr8iu' />
+                <AddComment recipeId='NgGFuHNPShvRbB0v64Ep' />
             </IonContent>
             <IonFooter>
                 <IonToolbar>

@@ -16,4 +16,29 @@
     overflow: hidden;
 }
 
+.table-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    margin-top: 30px;
+  }
+  
+  table {
+    margin: 50px;
+    border-collapse: collapse;
+    border: 1px solid;
+  }
+  
+  table th {
+    text-transform: uppercase;
+    font-weight: bold;
+    border: 1px solid #f2f2f2;
+
+  }
+  
+  table tbody td {
+    padding: 10px;
+    border: 1px solid #f2f2f2;
+
+  }
 

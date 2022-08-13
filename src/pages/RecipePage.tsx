@@ -29,11 +29,11 @@ import styles from "./RecipePage.module.css";
 import {useAuth} from "../auth";
 import {Comment, toComment} from "../models/comment";
 import AddComment from '../components/addComment/AddComment';
-import { useSession } from '@inrupt/solid-ui-react';
-import { getSolidDataset, getStringNoLocale, getThing } from '@inrupt/solid-client';
+import { Table, TableColumn, useSession } from '@inrupt/solid-ui-react';
+import { getSolidDataset, getStringNoLocale, getThing, Thing } from '@inrupt/solid-client';
 import { schema } from 'rdf-namespaces';
-var crypto = require('crypto');
 
+var crypto = require('crypto');
 
 interface RouteParams {
     id: string;
@@ -46,16 +46,16 @@ const RecipePage: React.FC = () => {
     const [commentsFb, setCommentsFb] = useState<Comment[]>([]);
     const [uploadMessage, setUploadMessage] = useState('');
     const [favorite, setFavorite] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [confirmDelete] = useIonAlert();
     const { session } = useSession();
+    const [commentThingsArray, setCommentThingsArray] = useState(null);
 
     const rdfText = schema.Text;
     const rdfCreator = schema.creator;
     const rdfDateCreated = schema.dateCreated;
 
     const history = useHistory();
-    const fileInputRef = useRef<HTMLInputElement>();
 
     useEffect(() => {
         //nodig?
@@ -66,7 +66,6 @@ const RecipePage: React.FC = () => {
             doc?.data()?.favoriteRecipes?.includes(id) ? setFavorite(true) : setFavorite(false);
         });
 
-        // vanaf hieronder wel nodig ja
         (async () => {
         setCommentsFb([]);
         const commentsRef = await db.collection('recipes').doc(id).collection('comments');
@@ -78,24 +77,38 @@ const RecipePage: React.FC = () => {
             })
         });
 
-        await getCommentsFromPods();
-        console.log("comments: "+JSON.stringify(commentsFb));
         })();
+    }, []);
 
-        
-    }, [id]);
+    useEffect(() => {
+    (async () => {
+        const commentList = await getCommentsFromPods().then(result => {
+            if(result === null) return;
+            const thingsArray = result.map((thing) => {
+                return {
+                    dataset: thing,
+                    thing: thing
+                }
+            });
+
+            setCommentThingsArray(thingsArray);
+            setLoading(false);
+        });
+    })();  
+    },  [commentsFb]);
 
     async function getCommentsFromPods() {
-        commentsFb.forEach(async (comment) => {
+        let commentThings : Thing[] = [];
+
+        for(const comment of commentsFb) {
             const commentFromPod = await fetchCommentFromPod(comment["Url"]);
-            console.log("pod comment:"+JSON.stringify(commentFromPod));
 
-            if (compareHashes(comment, commentFromPod)) {
-                // TODO toevoegen aan lokale dataset ofzo? allesinds, display the comment
-            }
+            if (compareHashes(comment, commentFromPod) && checkCommentText(comment)) {
+                commentThings.push(commentFromPod);
+            } 
+        }
 
-            return;
-        });
+        return commentThings;
     }
 
     async function fetchCommentFromPod(url) {
@@ -104,7 +117,7 @@ const RecipePage: React.FC = () => {
             { fetch: session.fetch }  
         );
 
-        const comment = getThing(
+        const comment = await getThing(
             commentDataset,
             url
           );
@@ -113,12 +126,25 @@ const RecipePage: React.FC = () => {
     }
 
     function compareHashes(commentFromFb, commentFromPod) {
-        const commentValue = getStringNoLocale(commentFromPod, rdfText);
+        const commentValue =  getStringNoLocale(commentFromPod, rdfText);
         const commentValueHashed = crypto.createHash('md5').update(commentValue).digest('hex');
 
         return commentValueHashed === commentFromFb["hashedComment"];
-
     }
+
+    function checkCommentText(comment) {
+        if(comment.length <= 3) {
+          setUploadMessage("Je hebt geen comment ingevoerd of de comment is korter dan drie karakters.");
+          return false;
+        }
+  
+        if(comment.length > 255) {
+          setUploadMessage("Je comment mag maximum uit 255 karakters bestaan.");
+          return false;
+        }
+  
+        return true;
+      }
 
 
     const handleDeleteRecipe = async () => {
@@ -262,6 +288,26 @@ const RecipePage: React.FC = () => {
                         <p>Er zijn nog geen foto's toegevoegd aan dit recept door andere gebruikers. Voeg als eerste een foto toe!</p>
                     </IonText>
                 }
+                {commentThingsArray != null &&
+                    <Table className="table" things={commentThingsArray}>
+                        <TableColumn 
+                            dataType="url" 
+                            property={rdfCreator}  
+                            header="Comment uploaded by"
+                            // body={({ value }) => value.toDateString()}
+                        ></TableColumn>
+
+                        <TableColumn property={rdfText}  header="Comment content"></TableColumn>
+
+                        <TableColumn 
+                            dataType="datetime" 
+                            property={rdfDateCreated}
+                            header="Comment uploaded at"
+                            sortable
+                        ></TableColumn>
+                    </Table>
+                }
+
 
                 <AddComment recipeId={id}></AddComment>
                 {/* <IonList>

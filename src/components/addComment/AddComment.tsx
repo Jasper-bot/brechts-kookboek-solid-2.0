@@ -12,7 +12,9 @@ import {
     buildThing,
     createThing,
     setThing,
-    getSourceUrl
+    getSourceUrl,
+    getDatetime,
+    getDate,
   } from "@inrupt/solid-client";
 
 import { schema } from 'rdf-namespaces';
@@ -111,12 +113,25 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
       return crypto.createHash('md5').update(comment).digest('hex');
     }
 
-    async function addUrlAndHashedCommentToFirebase(url, hashedComment) {
+    async function addUrlAndHashedCommentToCollection(url, hashedComment) {
       const commentRef = db.collection('recipes').doc(recipeId).collection('comments');
       await commentRef.add({
         Url: url,
         hashedComment: hashedComment
       });
+    }
+
+    async function addUrlAndHashedCommentToFirebase(updatedCommentDataset, hashedComment) {
+      try {
+        const latestComment = updatedCommentDataset.graphs.default[Object.keys(updatedCommentDataset.graphs.default).at(-1)];
+        await addUrlAndHashedCommentToCollection(latestComment.url ,hashedComment);
+        setUploadMessage("Uw comment is succesvol geupload!");
+      } catch (e) {
+        setUploadMessage(e.message);
+      } finally {
+        setLoading(false);
+        setComment("");
+      }
     }
 
     const handleCommentUpload = async () => {
@@ -134,18 +149,7 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
       saveToPod(updatedCommentDataset);
 
       const hashedComment = hashComment(comment);
-
-      try {
-        const latestComment = updatedCommentDataset.graphs.default[Object.keys(updatedCommentDataset.graphs.default).at(-1)];
-        await addUrlAndHashedCommentToFirebase(latestComment.url ,hashedComment);
-        setUploadMessage("Uw comment is succesvol geupload!");
-      } catch (e) {
-        setUploadMessage(e.message);
-      } finally {
-        setLoading(false);
-        setComment("");
-      }
-      
+      addUrlAndHashedCommentToFirebase(updatedCommentDataset, hashedComment);
     }
 
     function checkCommentText() {

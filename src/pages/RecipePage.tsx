@@ -23,7 +23,7 @@ import {arrayRemove, arrayUnion, deleteDoc, doc, updateDoc} from "firebase/fires
 import React, {useEffect, useRef, useState} from "react";
 import {useHistory, useParams} from "react-router";
 import {Recipe, toRecipe} from "../models/recipe";
-import {chatbubble, heart, heartOutline, trash} from "ionicons/icons";
+import {chatbubble, trash} from "ionicons/icons";
 import Header from "../components/Header";
 import styles from "./RecipePage.module.css";
 import {useAuth} from "../auth";
@@ -44,8 +44,7 @@ const RecipePage: React.FC = () => {
     const { id } = useParams<RouteParams>() ;
     const [recipe, setRecipe] = useState<Recipe>();
     const [commentsFb, setCommentsFb] = useState<Comment[]>([]);
-    const [uploadMessage, setUploadMessage] = useState('');
-    const [favorite, setFavorite] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [confirmDelete] = useIonAlert();
     const { session } = useSession();
@@ -58,16 +57,12 @@ const RecipePage: React.FC = () => {
     const history = useHistory();
 
     useEffect(() => {
-        //nodig?
         const recipeRef = db.collection('recipes').doc(id);
-        const userRef = db.collection('users').doc(userId);
         recipeRef.get().then ((doc) => setRecipe(toRecipe(doc)));
-        userRef.onSnapshot((doc) => {
-            doc?.data()?.favoriteRecipes?.includes(id) ? setFavorite(true) : setFavorite(false);
-        });
 
         (async () => {
         setCommentsFb([]);
+        setCommentThingsArray(null);
         const commentsRef = await db.collection('recipes').doc(id).collection('comments');
         commentsRef.onSnapshot((docs) =>{
             docs.docs.forEach(doc => {
@@ -76,7 +71,6 @@ const RecipePage: React.FC = () => {
                 }
             })
         });
-
         })();
     }, []);
 
@@ -103,26 +97,35 @@ const RecipePage: React.FC = () => {
         for(const comment of commentsFb) {
             const commentFromPod = await fetchCommentFromPod(comment["Url"]);
 
-            if (compareHashes(comment, commentFromPod) && checkCommentText(comment)) {
-                commentThings.push(commentFromPod);
-            } 
+            if(commentFromPod !== -1 ) {
+                if (compareHashes(comment, commentFromPod) && checkCommentText(comment)) {
+                    commentThings.push(commentFromPod);
+                } 
+            } else {
+                setErrorMessage("Sommige comments zijn niet zichtbaar omdat je niet de juiste leesrechten hebt");
+            }
         }
 
         return commentThings;
     }
 
     async function fetchCommentFromPod(url) {
-        const commentDataset = await getSolidDataset(
-            url, 
-            { fetch: session.fetch }  
-        );
+        try {
+            const commentDataset = await getSolidDataset(
+                url, 
+                { fetch: session.fetch }  
+            );
+    
+            const comment = await getThing(
+                commentDataset,
+                url
+              );
+    
+            return comment;
+        } catch(e) {
+            return -1;
+        }
 
-        const comment = await getThing(
-            commentDataset,
-            url
-          );
-
-        return comment;
     }
 
     function compareHashes(commentFromFb, commentFromPod) {
@@ -134,13 +137,15 @@ const RecipePage: React.FC = () => {
 
     function checkCommentText(comment) {
         if(comment.length <= 3) {
-          setUploadMessage("Je hebt geen comment ingevoerd of de comment is korter dan drie karakters.");
-          return false;
+            setErrorMessage("De comment is korter dan drie karakters.");
+            
+            return false;
         }
   
         if(comment.length > 255) {
-          setUploadMessage("Je comment mag maximum uit 255 karakters bestaan.");
-          return false;
+            setErrorMessage("Je comment mag maximum uit 255 karakters bestaan.");
+            
+            return false;
         }
   
         return true;
@@ -180,22 +185,8 @@ const RecipePage: React.FC = () => {
         setLoading(false);
     }
 
-    const changeFavorite = async () => {
-        const userRef = db.collection('users').doc(userId);
-        if(favorite) {
-           await updateDoc(userRef, {
-                favoriteRecipes: arrayRemove(id)
-           });
-        } else {
-            await updateDoc(userRef, {
-                favoriteRecipes: arrayUnion(id)
-            });
-        }
-        setFavorite(!favorite);
-    }
-
     const goToEdit = () => {
-        history.push(`/my/recipes/edit-recipe/${id}`)
+        history.push(`/my/recipes/edit-recipe/${id}`);
     }
 
     return (
@@ -229,11 +220,6 @@ const RecipePage: React.FC = () => {
                     <IonRow className={["ion-align-items-center", "ion-justify-content-center", "ion-text-capitalize"].join(" ")} >
                         <IonCol size="8">
                             <h2 className="ion-no-margin">{recipe?.title}</h2>
-                        </IonCol>
-                        <IonCol>
-                            <IonItem lines="none" onClick={changeFavorite}>
-                                <IonIcon icon={favorite? heart : heartOutline} className={styles.heart} slot="end"/>
-                            </IonItem>
                         </IonCol>
                     </IonRow>
                     <IonRow>
@@ -283,11 +269,18 @@ const RecipePage: React.FC = () => {
                 <IonListHeader>
                     Comments
                 </IonListHeader>
-                {commentsFb.length == 0 &&
+                {commentsFb.length == 0 && errorMessage === "" &&
                     <IonText color={"primary"}>
-                        <p>Er zijn nog geen foto's toegevoegd aan dit recept door andere gebruikers. Voeg als eerste een foto toe!</p>
+                        <p>Er zijn nog geen comments toegevoegd aan dit recept door andere gebruikers. Voeg als eerste een comment toe!</p>
                     </IonText>
                 }
+                {
+                    errorMessage.length != 0 && 
+                    <IonText color={"danger"}>
+                        {errorMessage}
+                    </IonText>
+                }
+
                 {commentThingsArray != null &&
                     <Table className="table" things={commentThingsArray}>
                         <TableColumn 
@@ -307,52 +300,7 @@ const RecipePage: React.FC = () => {
                         ></TableColumn>
                     </Table>
                 }
-
-
                 <AddComment recipeId={id}></AddComment>
-                {/* <IonList>
-                    {comments.map((val, index) =>
-                        <IonCard key={index}>
-                            <IonImg src={val.downloadURL.valueOf()} alt={val.comment.valueOf()}/>
-                            <IonCardHeader>
-                                <IonCardSubtitle>Geplaatst door:</IonCardSubtitle>
-                                <IonCardTitle> {val.name}</IonCardTitle>
-                            </IonCardHeader>
-                            <IonCardContent>
-                                <IonGrid>
-                                    <IonRow>
-                                        <IonCol  size={userId === val.uploaderId ? "9" : "12" }>
-                                            {val.comment}
-                                        </IonCol>
-                                        {val.uploaderId === userId &&
-                                            <IonCol size="3">
-                                               <IonButton onClick={() => confirmDelete({
-                                                   header:'Verwijder Comment',
-                                                   message:'Ben je zeker dat je deze comment wil verwijderen?',
-                                                   buttons:['Laat maar staan!', {text:'Ja, verwijder!', handler: () => handleCommentDelete(val)}]
-                                               })}><IonIcon icon={trash} slot="icon-only" /></IonButton>
-                                            </IonCol>
-                                        }
-                                    </IonRow>
-                                </IonGrid>
-
-                            </IonCardContent>
-                        </IonCard>
-                    )}
-                </IonList> */}
-                {/* <form className={"ion-margin"}>
-                    <IonLabel position={"stacked"}>Upload een nieuwe foto:</IonLabel>
-                    <IonText color="warning">
-                        <p>{uploadMessage}</p>
-                    </IonText>
-                    <input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} hidden className={styles.img}/>
-                    <img src={photo} alt=""
-                         onClick={handlePictureClick}
-                    />
-                    <IonTextarea placeholder={"Laat hier een boodschap achter voor bij je foto te zetten"} value={comment}
-                                 onIonChange={(event) => setComment(event.detail.value)} />
-                    <IonButton onClick={handleAddPhoto}>Upload foto + boodschap</IonButton>
-                </form> */}
                 <IonFab vertical='bottom' horizontal='end' slot='fixed'>
                     <IonFabButton routerLink={`/my/recipes/${id}/chat`}>
                         <IonIcon icon={chatbubble} />

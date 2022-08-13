@@ -97,6 +97,7 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     function updateDataset(newCommentThing) {
       const updatedCommentDataset = setThing(commentDataset, newCommentThing);
       setCommentDataset(updatedCommentDataset);
+      
       return updatedCommentDataset;
     }
 

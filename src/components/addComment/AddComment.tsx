@@ -1,7 +1,6 @@
 import { useSession } from '@inrupt/solid-ui-react';
-import { IonLabel, IonText, IonTextarea, IonButton, useIonAlert, IonLoading } from '@ionic/react';
+import { IonText, IonTextarea, IonButton, useIonAlert, IonLoading } from '@ionic/react';
 import React, { FC, useEffect, useRef, useState } from 'react';
-import styles from './AddComment.module.css';
 import {db, storage} from '../../firebase/firebase.utils';
 import {
     createSolidDataset,
@@ -10,21 +9,14 @@ import {
     getThing, 
     getUrlAll,
     buildThing,
-    createThing,
     setThing,
     getSourceUrl,
-    getDatetime,
-    getDate,
     asUrl,
-    createAcl,
-    getSolidDatasetWithAcl,
   } from "@inrupt/solid-client";
 
 import { schema } from 'rdf-namespaces';
-import { universalAccess } from "@inrupt/solid-client";
 import { handleIncomingRedirect, login, fetch, getDefaultSession } from '@inrupt/solid-client-authn-browser';
 import { acp_ess_2 } from "@inrupt/solid-client";
-import { create } from 'yup/lib/array';
 
 var crypto = require('crypto');
 
@@ -45,8 +37,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     const rdfCreator = schema.creator;
     const rdfDateCreated = schema.dateCreated;
 
-    //console.log("session state: " + JSON.stringify(session.info));
-
     useEffect(() => {
       if (!session) return;
 
@@ -63,11 +53,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         );
         const pod = podsUrls[0];
         const containerUri = `${pod}comments/`;
-
-        // console.log("podsurls: " + podsUrls);
-        // console.log("pod: " + pod);
-        // console.log("container uri: " +  containerUri);
-
         const commentDataset = await getOrCreateCommentDataset(containerUri, session.fetch);
 
         setCommentDataset(commentDataset);
@@ -79,7 +64,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
         console.log("container uri:  " + JSON.stringify(containerUri));
         
         try {
-            //const commentList = await getSolidDatasetWithAcl(indexUrl, { fetch });
             const commentList = await getSolidDataset(indexUrl, { fetch });
 
             return commentList;
@@ -94,7 +78,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
               );
               
               return commentList;
-              //return await getSolidDatasetWithAcl(indexUrl);
             }
           }
     }
@@ -130,7 +113,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     }
 
     async function addUrlAndHashedCommentToCollection(url, hashedComment) {
-      // await setupPublicReadPolicyForResource(url);
       const commentRef = db.collection('recipes').doc(recipeId).collection('comments');
       await commentRef.add({
         Url: url,
@@ -141,17 +123,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
     async function addUrlAndHashedCommentToFirebase(updatedCommentDataset, hashedComment) {
       try {
         const latestComment = updatedCommentDataset.graphs.default[Object.keys(updatedCommentDataset.graphs.default).at(-1)];
-        // universalAccess.setPublicAccess(
-        //   latestComment.url,
-        //   { read:true },
-        //   {fetch: session.fetch}
-        // ).then((newAccess) => {
-        //   if (newAccess === null) {
-        //     console.log("Could not load access details for this Resource.");
-        //   } else {
-        //     console.log("Returned Public Access:: ", JSON.stringify(newAccess));
-        //   }});
-
         await addUrlAndHashedCommentToCollection(latestComment.url ,hashedComment);
         setUploadMessage("Uw comment is succesvol geupload!");
       } catch (e) {
@@ -159,69 +130,6 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
       } finally {
         setLoading(false);
         setComment("");
-      }
-    }
-
-    async function setupPublicReadPolicyForResource(resourceURL) {
-      try {
-        // 1. Fetch the SolidDataset with its Access Control Resource (ACR).
-        let resourceWithAcr = await acp_ess_2.getSolidDatasetWithAcr(
-          resourceURL,              // Resource for which to set up the policies
-          { fetch: fetch }          // fetch from the authenticated session
-        );
-    
-        // 2. Create a Matcher for the Resource.
-        let resourcePublicMatcher = acp_ess_2.createResourceMatcherFor(
-          resourceWithAcr,
-          "match-public"  // Matcher URL will be {ACR URL}#match-public
-        );
-    
-        // 3. Specify that the matcher matches the Public (i.e., everyone).
-        resourcePublicMatcher = acp_ess_2.setPublic(resourcePublicMatcher);
-    
-        // 4. Add Matcher to the Resource's ACR.
-        resourceWithAcr = acp_ess_2.setResourceMatcher(
-          resourceWithAcr,
-          resourcePublicMatcher,
-        );
-    
-        // 5. Create the Policy for the Resource.
-        let resourcePolicy = acp_ess_2.createResourcePolicyFor(
-          resourceWithAcr,
-          "public-policy",  // Policy URL will be {ACR URL}#public-policy
-        );
-    
-        // 6. Add the Public Matcher to the Policy as an allOf() expression.
-        resourcePolicy = acp_ess_2.addAllOfMatcherUrl(
-          resourcePolicy,
-          resourcePublicMatcher
-        );
-    
-        // 7. Specify the access modes for the Policy.
-        resourcePolicy = acp_ess_2.setAllowModes(
-          resourcePolicy,
-          { read: true, append: false, write: false },
-        );
-    
-        // 8. Apply the Policy to the Resource.
-        resourceWithAcr = acp_ess_2.addPolicyUrl(
-           resourceWithAcr,
-           asUrl(resourcePolicy)
-         );
-    
-        // 9. Add the Policy definition to the Resource's ACR. 
-        resourceWithAcr = acp_ess_2.setResourcePolicy(
-           resourceWithAcr,
-           resourcePolicy,
-        );
-    
-        // 10. Save the ACR for the Resource.
-        const updatedResourceWithAcr = await acp_ess_2.saveAcrFor(
-          resourceWithAcr,
-          { fetch: fetch }          // fetch from the authenticated session
-        );
-      } catch (error) {
-        console.error(error.message);
       }
     }
 
@@ -240,6 +148,7 @@ const AddComment: React.FC<CommentProps> = ({recipeId}) => {
       saveToPod(updatedCommentDataset);
 
       const hashedComment = hashComment(comment);
+      
       addUrlAndHashedCommentToFirebase(updatedCommentDataset, hashedComment);
     }
 

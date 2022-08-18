@@ -1,31 +1,21 @@
 import {
-    IonButton, IonCol,
+    IonButton,
     IonContent, IonGrid,
-    IonHeader, IonIcon, IonImg,
-    IonItem, IonLabel, IonList,
+    IonHeader, IonIcon,
+    IonItem, IonLabel,
     IonPage,
     IonRouterLink, IonRow,
     IonTitle,
     IonToggle,
-    IonToolbar
 } from '@ionic/react';
 import styles from "./Account.module.css";
-import React, {useEffect, useState} from "react";
-import {auth, db} from '../firebase/firebase.utils.js';
+import React from "react";
 import Header from "../components/Header";
-import {useAuth} from "../auth";
 import {moon} from "ionicons/icons";
-import {toRecipe} from "../models/recipe";
 import { useSession, CombinedDataProvider, Text, LogoutButton } from "@inrupt/solid-ui-react";
 
 const Account: React.FC = () => {
     const { session } = useSession();
-
-    // useEffect(() => {
-    //     if (!sessionRequestInProgress) {
-    //         setTest("done");
-    //     }
-    // },[sessionRequestInProgress])
 
     const toggleDarkModeHandler = () => {
         document.body.classList.toggle("dark");

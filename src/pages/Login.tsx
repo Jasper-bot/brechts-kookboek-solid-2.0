@@ -30,7 +30,6 @@ const Login: React.FC = ({  }) => {
                     </IonRow>
                     <IonRow class="ion-justify-content-center">
                         <LoginButton
-                        // "https://broker.pod.inrupt.com/"
                         oidcIssuer="https://inrupt.net"
                         redirectUrl="http://localhost:8100/my/home"
                         onError={handleError}

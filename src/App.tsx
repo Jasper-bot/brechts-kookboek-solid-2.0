@@ -1,5 +1,3 @@
-//<editor-fold desc="imports">
-
 import React, {useEffect, useState} from "react";
 import {Redirect, Route, Switch} from 'react-router-dom';
 import AppTabs from "./AppTabs";
@@ -15,16 +13,12 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 import {AuthContext, useAuthInit} from "./auth";
 import Test from "./pages/test";
-
 import { SessionProvider, useSession } from "@inrupt/solid-ui-react";
-
-//</editor-fold>
 
 const App: React.FC = () => {
     return (
         <IonApp>
             <SessionProvider>
-                {/* <AuthContext.Provider value={auth}> */}
                     {/* routes */}
                     <IonReactRouter>
                         <Switch>
@@ -48,7 +42,6 @@ const App: React.FC = () => {
                             </Route>
                         </Switch>
                     </IonReactRouter>
-                {/* </AuthContext.Provider> */}
             </SessionProvider>
         </IonApp>
     );

@@ -18,12 +18,11 @@ import {
     IonText,
     useIonAlert,
 } from '@ionic/react';
-import {db, storage} from '../firebase/firebase.utils';
-import {arrayRemove, arrayUnion, deleteDoc, doc, updateDoc} from "firebase/firestore";
-import React, {useEffect, useRef, useState} from "react";
+import {db } from '../firebase/firebase.utils';
+import React, {useEffect, useState} from "react";
 import {useHistory, useParams} from "react-router";
 import {Recipe, toRecipe} from "../models/recipe";
-import {chatbubble, trash} from "ionicons/icons";
+import {chatbubble } from "ionicons/icons";
 import Header from "../components/Header";
 import styles from "./RecipePage.module.css";
 import {useAuth} from "../auth";
@@ -162,40 +161,11 @@ const RecipePage: React.FC = () => {
 
 
     const handleDeleteRecipe = async () => {
-        setLoading(true);
-        //verwijder alle fotos rond het recept
-        const storageRef = storage.ref(`images/${id}`);
-        storageRef.listAll().then((listResults) => {
-            const promises = listResults.items.map((item) => {
-                return item.delete();
-            });
-            Promise.all(promises);
-        }).catch((error) => {
-            console.log("Error removing document:", error);
-            return;
-        });
-        //verwijder het recept uit de favorieten van alle users
-        db.collection("users").get().then(function(querySnapshot) {
-            querySnapshot.forEach(function(doc) {
-                //console.log(doc.id, " => ", doc.data());
-                const userRef = db.collection('users').doc(doc.id);
-                updateDoc(userRef, {
-                    favoriteRecipes: arrayRemove(id)
-                });
-            });
-        })
-        //verwijder het recept
-        await deleteDoc(doc(db, "recipes", id)).then(() => {
-                history.goBack();
-            }
-        ).catch((error) => {
-            console.log("Error removing document:", error);
-        });
-        setLoading(false);
+       console.log("not implemented");
     }
 
     const goToEdit = () => {
-        history.push(`/my/recipes/edit-recipe/${id}`);
+        console.log("not implemented");
     }
     
 
@@ -297,7 +267,6 @@ const RecipePage: React.FC = () => {
                             dataType="url" 
                             property={rdfCreator}  
                             header="Comment uploaded by"
-                            // body={({ value }) => value.toDateString()}
                         ></TableColumn>
 
                         <TableColumn property={rdfText}  header="Comment content"></TableColumn>

@@ -54,9 +54,13 @@ const RecipePage: React.FC = () => {
     const rdfCreator = schema.creator;
     const rdfDateCreated = schema.dateCreated;
 
+    let t0 = 0;
+    let t1 = 0;
+
     const history = useHistory();
 
     useEffect(() => {
+        t0 = performance.now();
         const recipeRef = db.collection('recipes').doc(id);
         recipeRef.get().then ((doc) => setRecipe(toRecipe(doc)));
 
@@ -86,6 +90,9 @@ const RecipePage: React.FC = () => {
             });
 
             setCommentThingsArray(thingsArray);
+            t1 = performance.now();
+            console.log("Call to doSomething took " + (t1 - t0) + " milliseconds.");
+            
             setLoading(false);
         });
     })();  
@@ -97,7 +104,7 @@ const RecipePage: React.FC = () => {
         for(const comment of commentsFb) {
             const commentFromPod = await fetchCommentFromPod(comment["Url"]);
 
-            if(commentFromPod !== -1 ) {
+            if(commentFromPod !== -1) {
                 if (compareHashes(comment, commentFromPod) && checkCommentText(comment)) {
                     commentThings.push(commentFromPod);
                 } 
@@ -120,7 +127,9 @@ const RecipePage: React.FC = () => {
                 commentDataset,
                 url
               );
-    
+
+            if (comment === null) return -1;
+              
             return comment;
         } catch(e) {
             return -1;
@@ -188,6 +197,7 @@ const RecipePage: React.FC = () => {
     const goToEdit = () => {
         history.push(`/my/recipes/edit-recipe/${id}`);
     }
+    
 
     return (
         <IonPage >
